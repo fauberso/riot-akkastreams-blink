@@ -21,7 +21,7 @@ libraryDependencies ++= Seq(
 
 lazy val riot = project
   .in(file("."))
-  .enablePlugins(JavaAppPackaging, DeploySSH)
+  .enablePlugins(JavaAppPackaging, DeploySSH, RiotCtl)
   .settings(
     version := "1.1",
     deployConfigs ++= Seq(
