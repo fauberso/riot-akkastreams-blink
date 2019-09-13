@@ -1,7 +1,9 @@
 package net.auberson.raspi.akkatyped.blink;
 
 import java.time.Duration;
+import java.util.concurrent.CompletionStage;
 
+import akka.Done;
 import akka.NotUsed;
 import akka.actor.ActorRef;
 import akka.actor.ActorSystem;
@@ -22,9 +24,6 @@ import riot.GPIO.State;
 public class BlinkExample {
 
 	public static void main(String[] args) throws InterruptedException {
-		Util.dumpInfo();
-		System.out.println();
-
 		ActorSystem system = ActorSystem.create("BlinkExample");
 		Materializer mat = ActorMaterializer.create(system);
 
@@ -32,16 +31,19 @@ public class BlinkExample {
 		Flow<State, State, NotUsed> gpio7 = GPIO.out(7).initiallyLow().asFlow(system);
 		ActorRef gpio8 = system.actorOf(GPIO.out(8).initiallyLow().asProps());
 		Sink<GPIO.State, NotUsed> gpio9 = GPIO.out(9).initiallyLow().asSink(system);
+
 		// GPIO 8 and 9 are not used, but the underlying actor will be initialized,
 		// meaning the GPIO pin will become LOW.
 
 		// Let's set up a timer: Send a GPIOState.TOGGLE object every 500 millis
 		Source<GPIO.State, ?> timerSource = Source.tick(Duration.ZERO, Duration.ofMillis(500), GPIO.State.TOGGLE);
 
-		// Define the streams: On each timer tick, toggle the LED on GPIO7.
-		timerSource.via(gpio7).runWith(Sink.ignore(), mat);
+		// Also, we'll have a sink that logs the state returned by the GPIO flow:
+		Sink<GPIO.State, CompletionStage<Done>> logSink = Sink
+				.foreach(state -> System.out.println("GPIO 7 is now " + state));
 
-		System.out.println("Blinking led on " + gpio7);
+		// Define the streams: On each timer tick, toggle a LED and log the result.
+		timerSource.via(gpio7).runWith(logSink, mat);
 
 		// Wait forever
 		Thread.currentThread().join();
