@@ -3,12 +3,15 @@ package net.auberson.raspi.akkatyped.blink;
 import java.time.Duration;
 
 import akka.NotUsed;
+import akka.actor.ActorRef;
 import akka.actor.ActorSystem;
 import akka.stream.ActorMaterializer;
 import akka.stream.Materializer;
+import akka.stream.javadsl.Flow;
 import akka.stream.javadsl.Sink;
 import akka.stream.javadsl.Source;
 import riot.GPIO;
+import riot.GPIO.State;
 
 /**
  * Example code using Akka Stream that blinks a LED on a Raspberry Pi (connect
@@ -22,31 +25,26 @@ public class BlinkExample {
 		Util.dumpInfo();
 		System.out.println();
 
-		ActorSystem system = ActorSystem.create("QuickStart");
-		Materializer materializer = ActorMaterializer.create(system);
+		ActorSystem system = ActorSystem.create("BlinkExample");
+		Materializer mat = ActorMaterializer.create(system);
 
-		Sink<GPIO.State, NotUsed> gpio7 = GPIO.out(7).initiallyLow().asSink(system);
-		Sink<GPIO.State, NotUsed> gpio8 = GPIO.out(8).initiallyLow().asSink(system);
+		// You can easily make Flows, Sinks or Actors out of GPIO Pins:
+		Flow<State, State, NotUsed> gpio7 = GPIO.out(7).initiallyLow().asFlow(system);
+		ActorRef gpio8 = system.actorOf(GPIO.out(8).initiallyLow().asProps());
 		Sink<GPIO.State, NotUsed> gpio9 = GPIO.out(9).initiallyLow().asSink(system);
+		// GPIO 8 and 9 are not used, but the underlying actor will be initialized,
+		// meaning the GPIO pin will become LOW.
 
-		// Set-up a timer: Send a GPIOState.TOGGLE object every 500 millis
+		// Let's set up a timer: Send a GPIOState.TOGGLE object every 500 millis
 		Source<GPIO.State, ?> timerSource = Source.tick(Duration.ZERO, Duration.ofMillis(500), GPIO.State.TOGGLE);
 
-		// Create an 'Empty' source, which will never issue any message
-		Source<GPIO.State, ?> emptySource = Source.empty(GPIO.State.class);
-
-		// Define the streams: On each timer tick, toggle the LED on GPIO7. Also, use
-		// GPIO9 on an empty source, which causes it to be in initialised, but never
-		// used (this ensures GPIO9 is low, and not floating. GPIO8 isn't used anywhere,
-		// and won't be initialised at all.
-		timerSource.runWith(gpio7, materializer);
-		emptySource.runWith(gpio9, materializer);
+		// Define the streams: On each timer tick, toggle the LED on GPIO7.
+		timerSource.via(gpio7).runWith(Sink.ignore(), mat);
 
 		System.out.println("Blinking led on " + gpio7);
 
-		synchronized (BlinkExample.class) {
-			BlinkExample.class.wait();
-		}
+		// Wait forever
+		Thread.currentThread().join();
 	}
 
 }
