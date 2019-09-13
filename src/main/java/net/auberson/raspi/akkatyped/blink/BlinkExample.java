@@ -4,11 +4,11 @@ import java.time.Duration;
 
 import akka.NotUsed;
 import akka.actor.ActorSystem;
-import akka.actor.Cancellable;
 import akka.stream.ActorMaterializer;
 import akka.stream.Materializer;
 import akka.stream.javadsl.Sink;
 import akka.stream.javadsl.Source;
+import riot.GPIO;
 
 /**
  * Example code using Akka Stream that blinks a LED on a Raspberry Pi (connect
@@ -24,18 +24,16 @@ public class BlinkExample {
 
 		ActorSystem system = ActorSystem.create("QuickStart");
 		Materializer materializer = ActorMaterializer.create(system);
-		RaspberryPi raspi = RaspberryPi.create(system);
 
-		Sink<GPIOState, NotUsed> gpio7 = raspi.getGPIOSink(7, false);
-		Sink<GPIOState, NotUsed> gpio8 = raspi.getGPIOSink(8, false);
-		Sink<GPIOState, NotUsed> gpio9 = raspi.getGPIOSink(9, false);
+		Sink<GPIO.State, NotUsed> gpio7 = GPIO.out(7).initiallyLow().asSink(system);
+		Sink<GPIO.State, NotUsed> gpio8 = GPIO.out(8).initiallyLow().asSink(system);
+		Sink<GPIO.State, NotUsed> gpio9 = GPIO.out(9).initiallyLow().asSink(system);
 
 		// Set-up a timer: Send a GPIOState.TOGGLE object every 500 millis
-		Source<GPIOState, Cancellable> timerSource = Source.tick(Duration.ZERO, Duration.ofMillis(500),
-				GPIOState.TOGGLE);
+		Source<GPIO.State, ?> timerSource = Source.tick(Duration.ZERO, Duration.ofMillis(500), GPIO.State.TOGGLE);
 
 		// Create an 'Empty' source, which will never issue any message
-		Source<GPIOState, NotUsed> emptySource = Source.empty(GPIOState.class);
+		Source<GPIO.State, ?> emptySource = Source.empty(GPIO.State.class);
 
 		// Define the streams: On each timer tick, toggle the LED on GPIO7. Also, use
 		// GPIO9 on an empty source, which causes it to be in initialised, but never
@@ -45,7 +43,10 @@ public class BlinkExample {
 		emptySource.runWith(gpio9, materializer);
 
 		System.out.println("Blinking led on " + gpio7);
-		Util.waitForever(BlinkExample.class);
+
+		synchronized (BlinkExample.class) {
+			BlinkExample.class.wait();
+		}
 	}
 
 }

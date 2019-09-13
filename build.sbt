@@ -6,14 +6,10 @@ version := "1.0"
 
 scalaVersion := "2.12.7"
 
-lazy val akkaVersion = "2.6.0-M5"
+resolvers += "Local Maven Repository" at Path.userHome.asFile.toURI.toURL + ".m2/repository"
 
 libraryDependencies ++= Seq(
-  "com.typesafe.akka" %% "akka-stream" % akkaVersion,
-  "com.typesafe.akka" %% "akka-testkit" % akkaVersion,
-  "com.pi4j" % "pi4j-core" % "1.2",
-  "com.pi4j" % "pi4j-native" % "1.2",
-  "junit" % "junit" % "4.12"
+  "org.riot-framework" % "riot-core" % "0.1-SNAPSHOT"
 )
 
 enablePlugins(JavaServerAppPackaging)
