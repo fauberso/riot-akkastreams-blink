@@ -43,7 +43,7 @@ public class BlinkExample {
 				.foreach(state -> System.out.println("GPIO 7 is now " + state));
 
 		// Define the streams: On each timer tick, toggle a LED and log the result.
-		timerSource.via(gpio7).runWith(logSink, mat);
+		timerSource.via(gpio7).to(logSink).run(mat);
 
 		// Wait forever
 		Thread.currentThread().join();
