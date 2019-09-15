@@ -5,7 +5,6 @@ import java.util.concurrent.CompletionStage;
 
 import akka.Done;
 import akka.NotUsed;
-import akka.actor.ActorRef;
 import akka.actor.ActorSystem;
 import akka.stream.ActorMaterializer;
 import akka.stream.Materializer;
@@ -16,10 +15,14 @@ import riot.GPIO;
 import riot.GPIO.State;
 
 /**
- * Example code using Akka Stream that blinks a LED on a Raspberry Pi (connect
- * the LED to GND/Pin 6 and GPIO07/Pin 7, with a resistor): A timer is started
- * that sends a 'Toggle' message every half second. A Raspberry Pi GPIO pin
- * receives this message, and toggles the GPIO.
+ * Example code using Akka Stream that blinks a LED on a Raspberry Pi:
+ * <li>connect a green LED to GND/Pin 6 and GPIO07/Pin 7, with a resistor) <br>
+ * <li>connect a red LED to GND/Pin 6 and GPIO09/Pin 5 <br>
+ * <li>connect a push-button between GND/Pin 6 and GPIO15/Pin 8 <br>
+ * A timer is started that sends a 'Toggle' message every half second. A
+ * Raspberry Pi GPIO pin receives this message, and toggles the green LED. When
+ * the push-button is pressed, the GPIO 15 is shorted. This is detected by the
+ * program, and the red LED is lit in response.
  */
 public class BlinkExample {
 
@@ -27,10 +30,11 @@ public class BlinkExample {
 		ActorSystem system = ActorSystem.create("BlinkExample");
 		Materializer mat = ActorMaterializer.create(system);
 
-		// You can easily make Flows, Sinks or Actors out of GPIO Pins:
-		Flow<State, State, NotUsed> gpio7 = GPIO.out(7).initiallyLow().asFlow(system);
-		ActorRef gpio8 = system.actorOf(GPIO.out(8).initiallyLow().asProps());
-		Sink<GPIO.State, NotUsed> gpio9 = GPIO.out(9).initiallyLow().asSink(system);
+		// You can easily make Flows, Sources, Sinks or Actors out of GPIO Pins:
+		Flow<State, State, NotUsed> gpio7 = GPIO.out(7).initiallyLow().shuttingDownLow().asFlow(system);
+		Sink<GPIO.State, NotUsed> gpio9 = GPIO.out(9).initiallyLow().shuttingDownLow().asSink(system);
+		Source<State, NotUsed> gpio15 = GPIO.in(15).withPullupResistor().asSource(system, mat);
+		// or just plain actors: system.actorOf(GPIO.out(8).initiallyLow().asProps());
 
 		// GPIO 8 and 9 are not used, but the underlying actor will be initialized,
 		// meaning the GPIO pin will become LOW.
@@ -42,8 +46,11 @@ public class BlinkExample {
 		Sink<GPIO.State, CompletionStage<Done>> logSink = Sink
 				.foreach(state -> System.out.println("GPIO 7 is now " + state));
 
-		// Define the streams: On each timer tick, toggle a LED and log the result.
+		// Define the streams:
+		// 1- On each timer tick, toggle the green LED and log the result.
+		// 2- When GPIO 15 becomes Low (button is pressed), switch on the red LED.
 		timerSource.via(gpio7).to(logSink).run(mat);
+		gpio15.map(state -> state == State.LOW ? State.HIGH : State.LOW).to(gpio9).run(mat);
 
 		// Wait forever
 		Thread.currentThread().join();
