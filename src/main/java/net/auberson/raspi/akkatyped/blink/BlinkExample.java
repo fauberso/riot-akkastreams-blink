@@ -34,21 +34,18 @@ public class BlinkExample {
 		Flow<State, State, NotUsed> gpio7 = GPIO.out(7).initiallyLow().shuttingDownLow().asFlow(system);
 		Sink<GPIO.State, NotUsed> gpio9 = GPIO.out(9).initiallyLow().shuttingDownLow().asSink(system);
 		Source<State, NotUsed> gpio15 = GPIO.in(15).withPullupResistor().asSource(system, mat);
-		// or just plain actors: system.actorOf(GPIO.out(8).initiallyLow().asProps());
+		// or just plain actors: system.actorOf(GPIO.out(8).asProps());
 
-		// GPIO 8 and 9 are not used, but the underlying actor will be initialized,
-		// meaning the GPIO pin will become LOW.
-
-		// Let's set up a timer: Send a GPIOState.TOGGLE object every 500 millis
+		// Now, let's set up a timer: Send a GPIOState.TOGGLE object every 500 millis
 		Source<GPIO.State, ?> timerSource = Source.tick(Duration.ZERO, Duration.ofMillis(500), GPIO.State.TOGGLE);
 
 		// Also, we'll have a sink that logs the state returned by the GPIO flow:
 		Sink<GPIO.State, CompletionStage<Done>> logSink = Sink
 				.foreach(state -> System.out.println("GPIO 7 is now " + state));
 
-		// Define the streams:
-		// 1- On each timer tick, toggle the green LED and log the result.
-		// 2- When GPIO 15 becomes Low (button is pressed), switch on the red LED.
+		// Let's define 2 streams:
+		// - On each timer tick, toggle the green LED and log the result.
+		// - When GPIO 15 becomes Low (button is pressed), switch on the red LED.
 		timerSource.via(gpio7).to(logSink).run(mat);
 		gpio15.map(state -> state == State.LOW ? State.HIGH : State.LOW).to(gpio9).run(mat);
 
