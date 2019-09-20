@@ -1,4 +1,4 @@
-package net.auberson.raspi.akkatyped.blink;
+package net.auberson.raspi.riot.blink;
 
 import java.time.Duration;
 import java.util.concurrent.CompletionStage;
@@ -41,7 +41,7 @@ public class BlinkExample {
 
 		// Also, we'll have a sink that logs the state returned by the GPIO flow:
 		Sink<GPIO.State, CompletionStage<Done>> logSink = Sink
-				.foreach(state -> System.out.println("GPIO 7 is now " + state));
+		        .foreach(state -> System.out.println("GPIO 7 is now " + state));
 
 		// Let's define 2 streams:
 		// - On each timer tick, toggle the green LED and log the result.
