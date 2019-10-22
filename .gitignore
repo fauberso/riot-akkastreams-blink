@@ -31,5 +31,9 @@ hs_err_pid*
 .cache-main
 /bin/
 
+# IDEA
+.idea
+*.iml
+
 # MacOS
 Icon?
